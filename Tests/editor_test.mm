@@ -1,0 +1,268 @@
+// editor_test.mm  (macOS only)
+// Loads the built plugin, opens its panel in an offscreen window the way a host
+// does, renders screenshots, drives the controls with synthetic mouse events,
+// checks host automation messages, and closes it again.
+//
+//   editor_test <plugin binary> <output dir for PNGs>
+
+#import <Cocoa/Cocoa.h>
+
+#include "../Source/VST2/vst2_abi.h"
+#include "../Source/VST2/Params.h"
+#include "../Source/VST2/Editor.h"
+
+#include <dlfcn.h>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <string>
+#include <algorithm>
+#include <vector>
+
+static int failures = 0;
+static void check (bool ok, const char* what)
+{
+    std::printf ("  %s  %s\n", ok ? "ok  " : "FAIL", what);
+    if (! ok) ++failures;
+}
+
+static int automateCalls = 0, beginCalls = 0, endCalls = 0;
+static VstIntPtr VST_CALL hostCallback (AEffect*, VstInt32 opcode, VstInt32, VstIntPtr, void*, float)
+{
+    switch (opcode)
+    {
+        case audioMasterVersion:   return 2400;
+        case audioMasterAutomate:  ++automateCalls; return 0;
+        case audioMasterBeginEdit: ++beginCalls; return 1;
+        case audioMasterEndEdit:   ++endCalls; return 1;
+        default:                   return 0;
+    }
+}
+
+typedef AEffect* (*EntryProc) (audioMasterCallback);
+
+static VstIntPtr call (AEffect* e, VstInt32 op, VstInt32 idx = 0, VstIntPtr val = 0, void* ptr = 0, float opt = 0.0f)
+{
+    return e->dispatcher (e, op, idx, val, ptr, opt);
+}
+
+static NSData* renderPNG (NSView* v, const std::string& path)
+{
+    const NSRect b = [v bounds];
+    NSBitmapImageRep* rep = [v bitmapImageRepForCachingDisplayInRect: b];
+    [v cacheDisplayInRect: b toBitmapImageRep: rep];
+    NSData* png = [rep representationUsingType: NSPNGFileType properties: [NSDictionary dictionary]];
+    [png writeToFile: [NSString stringWithUTF8String: path.c_str()] atomically: YES];
+    std::printf ("  wrote %s (%lu bytes)\n", path.c_str(), (unsigned long) [png length]);
+    return png;
+}
+
+// Send a mouse event at a point in the panel's (flipped) coordinates.
+static void mouse (NSWindow* w, NSView* v, NSEventType type, NSPoint panelPt, int clicks = 1)
+{
+    const NSPoint wp = [v convertPoint: panelPt toView: nil];
+    NSEvent* e = [NSEvent mouseEventWithType: type location: wp modifierFlags: 0 timestamp: 0
+                                windowNumber: [w windowNumber] context: nil eventNumber: 0
+                                  clickCount: clicks pressure: 1.0f];
+    if (type == NSLeftMouseDown) [v mouseDown: e];
+    else if (type == NSLeftMouseDragged) [v mouseDragged: e];
+    else [v mouseUp: e];
+}
+
+static void pump (double secs)
+{
+    [[NSRunLoop currentRunLoop] runUntilDate: [NSDate dateWithTimeIntervalSinceNow: secs]];
+}
+
+int main (int argc, char** argv)
+{
+    if (argc < 3) { std::printf ("usage: %s <plugin binary> <png dir>\n", argv[0]); return 2; }
+    setvbuf (stdout, 0, _IONBF, 0);   // unbuffered, so a crash still shows how far it got
+    NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
+    [NSApplication sharedApplication];
+    const std::string dir = argv[2];
+
+    // Keep the test's presets away from any real ones
+    const std::string presetFile = dir + "/test_presets/Presets.txt";
+    setenv ("TBEFFECTRON_PRESET_FILE", presetFile.c_str(), 1);
+    std::remove (presetFile.c_str());
+
+    void* lib = dlopen (argv[1], RTLD_NOW | RTLD_LOCAL);
+    if (! lib) { std::printf ("dlopen failed: %s\n", dlerror()); return 1; }
+    EntryProc entry = (EntryProc) dlsym (lib, "VSTPluginMain");
+    if (! entry) { std::printf ("no entry point\n"); return 1; }
+    AEffect* e = entry (hostCallback);
+    call (e, effOpen);
+    call (e, effSetSampleRate, 0, 0, 0, 44100.0f);
+    call (e, effMainsChanged, 0, 1);
+
+    using namespace tbeffectron;
+    std::printf ("Editor\n");
+    check ((e->flags & effFlagsHasEditor) != 0, "plugin reports a custom editor");
+    ERect* r = 0;
+    call (e, effEditGetRect, 0, 0, &r);
+    check (r && r->right - r->left == kEditorWidth && r->bottom - r->top == kEditorHeight,
+           "editor size as declared");
+
+    NSWindow* win = [[NSWindow alloc] initWithContentRect: NSMakeRect (0, 0, kEditorWidth, kEditorHeight)
+                                                styleMask: NSBorderlessWindowMask
+                                                  backing: NSBackingStoreBuffered defer: NO];
+    NSView* parent = [win contentView];
+    check (call (e, effEditOpen, 0, 0, parent) == 1, "effEditOpen succeeds");
+    check ([[parent subviews] count] == 1, "panel view added to the host's view");
+    NSView* panel = [[parent subviews] count] ? [[parent subviews] objectAtIndex: 0] : nil;
+    if (! panel) return 1;
+    check (NSEqualSizes ([panel frame].size, NSMakeSize (kEditorWidth, kEditorHeight)), "panel has the declared size");
+
+    NSData* pngDefault = renderPNG (panel, dir + "/panel_default.png");
+    check ([pngDefault length] > 10000, "panel renders");
+
+    std::printf ("\nControls\n");
+    // Drag the MIX knob down 50 px: -0.25
+    e->setParameter (e, kMix, 0.5f);
+    const float g0 = e->getParameter (e, kMix);
+    automateCalls = beginCalls = endCalls = 0;
+    mouse (win, panel, NSLeftMouseDown,    NSMakePoint (1049, 75));
+    mouse (win, panel, NSLeftMouseDragged, NSMakePoint (1049, 100));
+    mouse (win, panel, NSLeftMouseDragged, NSMakePoint (1049, 125));
+    mouse (win, panel, NSLeftMouseUp,      NSMakePoint (1049, 125));
+    const float g1 = e->getParameter (e, kMix);
+    std::printf ("  Mix %.2f -> %.2f\n", g0, g1);
+    check (std::fabs (g1 - (g0 - 0.25f)) < 0.02f, "dragging a knob down turns it down");
+    check (automateCalls > 0 && beginCalls == 1 && endCalls == 1, "host gets begin / automate / end");
+
+    mouse (win, panel, NSLeftMouseDown, NSMakePoint (1049, 75), 2);
+    mouse (win, panel, NSLeftMouseUp,   NSMakePoint (1049, 75), 2);
+    check (std::fabs (e->getParameter (e, kMix) - kDefaults[kMix]) < 1e-6f, "double-click resets a knob");
+
+    // Each knob answers where it is drawn (dragged up from mid-travel). DELAY is
+    // the concentric knob's outer ring, WIDTH its inner cap.
+    {
+        const int knobs[8] = { kLevel, kFeedback, kDelay, kWidth, kSpeed, kMix, kInput, kOutput };
+        const CGFloat kx[8] = { 211, 349, 733, 733, 895, 1049, 44, 116 };
+        const CGFloat ky[8] = { 75, 75, 56, 75, 75, 75, 190, 190 };
+        bool all = true;
+        for (int k = 0; k < 8; ++k)
+        {
+            for (int j = 0; j < 8; ++j) e->setParameter (e, knobs[j], 0.5f);
+            mouse (win, panel, NSLeftMouseDown,    NSMakePoint (kx[k], ky[k]));
+            mouse (win, panel, NSLeftMouseDragged, NSMakePoint (kx[k], ky[k] - 20));
+            mouse (win, panel, NSLeftMouseUp,      NSMakePoint (kx[k], ky[k] - 20));
+            bool others = true;
+            for (int j = 0; j < 8; ++j) if (j != k && e->getParameter (e, knobs[j]) != 0.5f) others = false;
+            if (! (e->getParameter (e, knobs[k]) > 0.55f) || ! others) { all = false; std::printf ("  knob %d did not turn alone\n", knobs[k]); }
+        }
+        for (int j = 0; j < 8; ++j) e->setParameter (e, knobs[j], kDefaults[knobs[j]]);
+        check (all, "all eight knobs turn, each on its own (DELAY ring and WIDTH cap apart)");
+    }
+
+    // DIGITAL DELAY buttons: each press toggles that button
+    {
+        e->setParameter (e, kRange, rangeValue (2));      // SH ECHO: left in
+        mouse (win, panel, NSLeftMouseDown, NSMakePoint (574, 82));
+        mouse (win, panel, NSLeftMouseUp,   NSMakePoint (574, 82));
+        const int a = rangeIndex (e->getParameter (e, kRange));
+        mouse (win, panel, NSLeftMouseDown, NSMakePoint (506, 82));
+        mouse (win, panel, NSLeftMouseUp,   NSMakePoint (506, 82));
+        const int b = rangeIndex (e->getParameter (e, kRange));
+        mouse (win, panel, NSLeftMouseDown, NSMakePoint (574, 82));
+        mouse (win, panel, NSLeftMouseUp,   NSMakePoint (574, 82));
+        const int c = rangeIndex (e->getParameter (e, kRange));
+        std::printf ("  ranges after presses: %d, %d, %d\n", a, b, c);
+        check (a == 3 && b == 1 && c == 0, "buttons: SH ECHO -> LG ECHO -> DOUBLE -> FLANGE");
+        // REPEAT button
+        mouse (win, panel, NSLeftMouseDown, NSMakePoint (72, 72));
+        mouse (win, panel, NSLeftMouseUp,   NSMakePoint (72, 72));
+        check (e->getParameter (e, kRepeat) >= 0.5f, "REPEAT button latches in");
+        e->setParameter (e, kRange, rangeValue (3));
+        pump (0.1);
+        renderPNG (panel, dir + "/panel_buttons_in.png");
+        mouse (win, panel, NSLeftMouseDown, NSMakePoint (72, 72));
+        mouse (win, panel, NSLeftMouseUp,   NSMakePoint (72, 72));
+        check (e->getParameter (e, kRepeat) < 0.5f, "and out again");
+        e->setParameter (e, kRange, kDefaults[kRange]);
+    }
+
+    // DELAY turned shows in the readout
+    mouse (win, panel, NSLeftMouseDown,    NSMakePoint (733, 56));
+    mouse (win, panel, NSLeftMouseDragged, NSMakePoint (733, 46));
+    mouse (win, panel, NSLeftMouseUp,      NSMakePoint (733, 46));
+    renderPNG (panel, dir + "/panel_readout.png");
+    e->setParameter (e, kDelay, kDefaults[kDelay]);
+
+    std::printf ("\nPresets\n");
+    #define SLOT(k) NSMakePoint (222.0 + (k) * 33.0 + 14.5, 190.0)
+    e->setParameter (e, kFeedback, 0.3f);
+    e->setParameter (e, kRepeat, 1.0f);
+    pump (0.1);
+    mouse (win, panel, NSLeftMouseDown, NSMakePoint (191, 190));    // SAVE
+    mouse (win, panel, NSLeftMouseUp,   NSMakePoint (191, 190));
+    mouse (win, panel, NSLeftMouseDown, SLOT (2));                   // slot 3
+    mouse (win, panel, NSLeftMouseUp,   SLOT (2));
+    FILE* pf = std::fopen (presetFile.c_str(), "r");
+    check (pf != 0, "SAVE then a slot writes the preset file");
+    if (pf) std::fclose (pf);
+    renderPNG (panel, dir + "/panel_preset_saved.png");
+
+    e->setParameter (e, kFeedback, 0.9f);
+    e->setParameter (e, kRepeat, 0.0f);
+    pump (0.1);
+    automateCalls = 0;
+    mouse (win, panel, NSLeftMouseDown, SLOT (2));
+    mouse (win, panel, NSLeftMouseUp,   SLOT (2));
+    check (std::fabs (e->getParameter (e, kFeedback) - 0.3f) < 1e-5f
+           && e->getParameter (e, kRepeat) >= 0.5f, "clicking the slot recalls the saved settings");
+    check (automateCalls >= kNumParams, "recall tells the host about every parameter");
+
+    const float before = e->getParameter (e, kFeedback);
+    mouse (win, panel, NSLeftMouseDown, SLOT (5));                   // empty slot 6
+    mouse (win, panel, NSLeftMouseUp,   SLOT (5));
+    check (e->getParameter (e, kFeedback) == before, "an empty slot changes nothing");
+    e->setParameter (e, kRepeat, 0.0f);
+    e->setParameter (e, kFeedback, 0.5f);
+
+    std::printf ("\nHost automation shows on the panel\n");
+    NSData* pngBefore = renderPNG (panel, dir + "/panel_before_host.png");
+    e->setParameter (e, kSpeed, 0.9f);
+    e->setParameter (e, kRange, 0.0f);
+    pump (0.3);
+    NSData* pngAfter = renderPNG (panel, dir + "/panel_changed.png");
+    check (! [pngAfter isEqualToData: pngBefore], "panel redraws after host changes");
+
+    std::printf ("\nLIMIT LED follows the converter\n");
+    {
+        // A flanger-ish setting, played hot enough to light LIMIT
+        e->setParameter (e, kLevel, 0.85f);
+        e->setParameter (e, kFeedback, 0.78f);
+        e->setParameter (e, kRange, rangeValue (1));
+        e->setParameter (e, kDelay, 0.38f);
+        e->setParameter (e, kWidth, 0.6f);
+        e->setParameter (e, kSpeed, 0.45f);
+        e->setParameter (e, kMix, 0.5f);
+        const int n = 22050;
+        std::vector<float> a (n), b (n), oa (n), ob (n);
+        for (int i = 0; i < n; ++i) a[i] = b[i] = (float) (0.5 * std::sin (2.0 * 3.14159265358979 * 220.0 * i / 44100.0));
+        float* in[2] = { &a[0], &b[0] };
+        float* out[2] = { &oa[0], &ob[0] };
+        mouse (win, panel, NSLeftMouseDown, NSMakePoint (733, 56));     // readout shows DELAY
+        mouse (win, panel, NSLeftMouseUp,   NSMakePoint (733, 56));
+        NSData* quiet = renderPNG (panel, dir + "/panel_limit_off.png");
+        e->processReplacing (e, in, out, n);
+        pump (0.3);
+        NSData* lit = renderPNG (panel, dir + "/panel_showcase.png");
+        check (! [lit isEqualToData: quiet], "LIMIT lights when the converter is driven hard");
+    }
+    std::printf ("\nClose\n");
+    call (e, effEditClose);
+    check ([[parent subviews] count] == 0, "effEditClose removes the panel");
+    check (call (e, effEditOpen, 0, 0, parent) == 1 && [[parent subviews] count] == 1, "reopens");
+    call (e, effEditClose);
+    call (e, effMainsChanged, 0, 0);
+    call (e, effClose);
+    [win release];
+    [pool release];      // drain before unloading the plugin's code
+    dlclose (lib);
+
+    std::printf ("\n%s (%d failure%s)\n", failures ? "FAILED" : "ALL EDITOR CHECKS PASSED", failures, failures == 1 ? "" : "s");
+    return failures ? 1 : 0;
+}
