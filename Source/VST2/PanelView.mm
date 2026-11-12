@@ -158,17 +158,14 @@ void drawTicks (CGFloat cx, CGFloat cy, int n, CGFloat a0deg, CGFloat a1deg)
     }
 }
 
-// The small end-of-scale labels sit at the scale's ends with a short leader, as on the unit
+// The small end-of-scale labels, just outside the scale's end ticks
 void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
 {
     NSFont* f = boldFont (8.5);
     const NSSize sz = textSize (s, f);
-    const CGFloat ly = cy + 19.0;
-    const CGFloat x0 = left ? cx - 22.0 : cx + 22.0;
-    [ink() set];
-    line (x0, ly - 4.0, left ? x0 - 5.0 : x0 + 5.0, ly, 1.2);
-    const CGFloat tx = left ? x0 - 7.0 - sz.width * 0.5 : x0 + 7.0 + sz.width * 0.5;
-    drawText (s, f, ink(), tx, ly + 1.0);
+    const CGFloat ly = cy + 24.0;
+    const CGFloat tx = left ? cx - 20.0 - sz.width * 0.5 : cx + 20.0 + sz.width * 0.5;
+    drawText (s, f, ink(), tx, ly);
 }
 
 } // namespace
@@ -412,8 +409,8 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
         // the bracket under the section
         [white set];
         line (427, 104, 427, 111, 1.6);
-        line (427, 111, 471, 111, 1.6);
-        line (577, 111, 640, 111, 1.6);
+        line (427, 111, 455, 111, 1.6);
+        line (593, 111, 640, 111, 1.6);
         line (640, 104, 640, 111, 1.6);
         drawText ("DIGITAL DELAY (ms)", boldFont (12.5), white, 524, 112, 0.5);
     }
@@ -421,11 +418,11 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
     // MODULATOR: outline round DELAY / WIDTH and SPEED
     {
         [white set];
-        line (729, 25, 778, 25, 1.6);
-        line (858, 25, 951, 25, 1.6);
+        line (729, 25, 752, 25, 1.6);
+        line (884, 25, 951, 25, 1.6);
         line (951, 25, 951, 111, 1.6);
         line (951, 111, 923, 111, 1.6);
-        line (867, 111, 786, 111, 1.6);
+        line (867, 111, 792, 111, 1.6);
         line (729, 25, 729, 33, 1.6);
         line (733, 99, 733, 111, 1.6);       // from the knob down to WIDTH
         line (733, 111, 739, 111, 1.6);
