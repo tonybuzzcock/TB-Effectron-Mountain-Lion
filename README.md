@@ -33,7 +33,7 @@ Every push button lights up red when it is in. The TB electronic logo is at the 
 panel keeps the unit's colours: the blue face, white lettering, black knurled knobs with teal caps
 (SPEED matched to the others), and the red buttons.
 
-Plugin strip: Input (+-12 dB), Output (+-24 dB), 8 presets, readout.
+Lower part of the panel: Input (+-12 dB), Output (+-24 dB), 8 red preset keys with names (SAVE, then a slot, then type a name and press Return; click the light blue readout to rename the preset in use), and the readout.
 
 ## How it's modelled
 

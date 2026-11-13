@@ -496,14 +496,16 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
         [NSGraphicsContext saveGraphicsState];
         NSShadow* glow = [[[NSShadow alloc] init] autorelease];
         [glow setShadowOffset: NSMakeSize (0.0, 0.0)];
-        [glow setShadowBlurRadius: 12.0];
-        [glow setShadowColor: [NSColor colorWithCalibratedRed: 1.0 green: 0.28 blue: 0.16 alpha: 1.0]];
+        [glow setShadowBlurRadius: 16.0];
+        [glow setShadowColor: [NSColor colorWithCalibratedRed: 1.0 green: 0.08 blue: 0.04 alpha: 1.0]];
         [glow set];
-        [rgb (232, 84, 58) set];
+        [rgb (255, 40, 24) set];
+        [bp fill];
+        [bp fill];
         [bp fill];
         [NSGraphicsContext restoreGraphicsState];
         NSGradient* g = [[[NSGradient alloc] initWithColorsAndLocations:
-                            rgb (255, 196, 168), 0.0, rgb (246, 112, 82), 0.4, rgb (214, 70, 48), 0.85, rgb (176, 52, 36), 1.0, nil] autorelease];
+                            rgb (255, 236, 220), 0.0, rgb (255, 120, 96), 0.3, rgb (255, 44, 26), 0.75, rgb (226, 20, 12), 1.0, nil] autorelease];
         [g drawInBezierPath: bp relativeCenterPosition: NSMakePoint (0.0, 0.0)];
     }
     else
@@ -514,12 +516,12 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
         [sh setShadowBlurRadius: 2.5];
         [sh setShadowColor: [NSColor colorWithCalibratedWhite: 0.0 alpha: 0.7]];
         [sh set];
-        [rgb (130, 54, 44) set];
+        [rgb (150, 14, 12) set];
         [bp fill];
         [NSGraphicsContext restoreGraphicsState];
         NSGradient* g = state == 1
-            ? [[[NSGradient alloc] initWithStartingColor: rgb (176, 80, 64) endingColor: rgb (122, 48, 38)] autorelease]
-            : [[[NSGradient alloc] initWithStartingColor: rgb (120, 56, 50) endingColor: rgb (84, 36, 30)] autorelease];
+            ? [[[NSGradient alloc] initWithStartingColor: rgb (214, 30, 24) endingColor: rgb (150, 12, 10)] autorelease]
+            : [[[NSGradient alloc] initWithStartingColor: rgb (140, 16, 14) endingColor: rgb (96, 8, 8)] autorelease];
         [g drawInBezierPath: bp angle: -90.0];
         [[NSColor colorWithCalibratedWhite: 1.0 alpha: 0.16] set];
         NSRectFillUsingOperation (NSMakeRect (NSMinX (r) + 2.0, NSMinY (r) + 1.5, r.size.width - 4.0, 1.2), NSCompositeSourceOver);
@@ -641,15 +643,16 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
         [NSGraphicsContext saveGraphicsState];
         NSShadow* glow = [[[NSShadow alloc] init] autorelease];
         [glow setShadowOffset: NSMakeSize (0.0, 0.0)];
-        [glow setShadowBlurRadius: 12.0];
-        [glow setShadowColor: [NSColor colorWithCalibratedRed: 1.0 green: 0.28 blue: 0.16 alpha: 1.0]];
+        [glow setShadowBlurRadius: 16.0];
+        [glow setShadowColor: [NSColor colorWithCalibratedRed: 1.0 green: 0.08 blue: 0.04 alpha: 1.0]];
         [glow set];
-        [rgb (232, 84, 58) set];
+        [rgb (255, 40, 24) set];
+        [cp fill];
         [cp fill];
         [cp fill];
         [NSGraphicsContext restoreGraphicsState];
         NSGradient* g = [[[NSGradient alloc] initWithColorsAndLocations:
-                            rgb (255, 196, 168), 0.0, rgb (246, 112, 82), 0.35, rgb (214, 70, 48), 0.8, rgb (176, 52, 36), 1.0, nil] autorelease];
+                            rgb (255, 236, 220), 0.0, rgb (255, 120, 96), 0.3, rgb (255, 44, 26), 0.75, rgb (226, 20, 12), 1.0, nil] autorelease];
         [g drawInBezierPath: cp relativeCenterPosition: NSMakePoint (0.0, 0.0)];
     }
     else
@@ -660,10 +663,10 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
         [sh setShadowBlurRadius: 2.5];
         [sh setShadowColor: [NSColor colorWithCalibratedWhite: 0.0 alpha: 0.8]];
         [sh set];
-        [rgb (150, 64, 52) set];
+        [rgb (170, 18, 14) set];
         [cp fill];
         [NSGraphicsContext restoreGraphicsState];
-        NSGradient* g = [[[NSGradient alloc] initWithStartingColor: rgb (176, 80, 64) endingColor: rgb (122, 48, 38)] autorelease];
+        NSGradient* g = [[[NSGradient alloc] initWithStartingColor: rgb (214, 30, 24) endingColor: rgb (150, 12, 10)] autorelease];
         [g drawInBezierPath: cp angle: -90.0];
         [[NSColor colorWithCalibratedWhite: 1.0 alpha: 0.18] set];
         NSRectFillUsingOperation (NSMakeRect (NSMinX (cap) + 2.0, NSMinY (cap) + 1.5, cap.size.width - 4.0, 1.2), NSCompositeSourceOver);
@@ -701,8 +704,8 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
 {
     const NSRect box = kReadoutRect;
     NSBezierPath* p = [NSBezierPath bezierPathWithRect: box];
-    NSGradient* glow = [[[NSGradient alloc] initWithStartingColor: rgb (206, 255, 120)
-                                                      endingColor: rgb (150, 232, 70)] autorelease];
+    NSGradient* glow = [[[NSGradient alloc] initWithStartingColor: rgb (214, 236, 255)
+                                                      endingColor: rgb (160, 204, 244)] autorelease];
     [glow drawInBezierPath: p relativeCenterPosition: NSMakePoint (0.0, 0.0)];
     [rgb (60, 62, 65) set];
     [p setLineWidth: 1.0];
@@ -758,7 +761,7 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
         const NSRect r = slotRect (k);
         const int state = (k == activePreset) ? 2 : (presetUsed[k] ? 1 : 0);
         [self drawRedKey: r state: state];
-        NSColor* text = state == 2 ? rgb (60, 10, 6) : (state == 1 ? [NSColor whiteColor] : rgb (196, 140, 130));
+        NSColor* text = state == 2 ? rgb (60, 10, 6) : (state == 1 ? [NSColor whiteColor] : rgb (220, 150, 145));
         char num[4];
         std::snprintf (num, sizeof (num), "%d", k + 1);
         drawText (num, boldFont (18.0), text, NSMidX (r), NSMidY (r));
@@ -873,7 +876,7 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
     [nameField setBezeled: NO];
     [nameField setBordered: NO];
     [nameField setDrawsBackground: YES];
-    [nameField setBackgroundColor: rgb (196, 250, 110)];
+    [nameField setBackgroundColor: rgb (200, 226, 252)];
     [nameField setTextColor: [NSColor blackColor]];
     [nameField setFont: boldFont (18.0)];
     [nameField setAlignment: NSCenterTextAlignment];
