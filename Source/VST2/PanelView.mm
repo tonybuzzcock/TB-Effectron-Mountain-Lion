@@ -8,8 +8,9 @@
 // LED, the MODULATOR outline. The DeltaLab badge is left off; REPEAT (the
 // rear footswitch's infinite repeat) sits in its place as a third red push
 // button, and the user's TB electronic logo, red and black, is at the right-
-// hand end. Every push button lights up when it is in. A strip of plugin
-// controls runs along the bottom (Input, Output, presets, readout).
+// hand end. Every push button lights up when it is in. The face is one
+// panel: the plugin controls (Input, Output, red preset buttons, readout)
+// sit along its lower part. Square corners throughout.
 //
 // Cocoa, manual retain/release, and only APIs that exist in Mac OS X 10.8.5.
 // Everything is drawn in code; no image files.
@@ -45,10 +46,8 @@ struct Ctl
 };
 
 // Geometry: the photo (699 x 78) scaled by 1.8; the strip below
-const CGFloat kFaceH = 140.0;
-const CGFloat kStripTop = 140.0;
 const CGFloat kEarW = 22.0;                 // dark rack ears either side
-const CGFloat kBlueTop = 14.0, kBlueBot = 128.0;
+const CGFloat kBlueTop = 14.0, kBlueMargin = 14.0;   // the blue face, top and bottom margins
 const CGFloat kKnobR = 20.0;
 const CGFloat kCapR = 14.5;
 const CGFloat kButtonHalfW = 10.0, kButtonHalfH = 15.0;
@@ -101,12 +100,6 @@ NSFont* boldFont (CGFloat size)
 {
     NSFont* f = [NSFont fontWithName: @"Helvetica-Bold" size: size];
     return f ? f : [NSFont boldSystemFontOfSize: size];
-}
-
-NSFont* plainFont (CGFloat size)
-{
-    NSFont* f = [NSFont fontWithName: @"Helvetica" size: size];
-    return f ? f : [NSFont systemFontOfSize: size];
 }
 
 NSFont* boldObliqueFont (CGFloat size)
@@ -286,24 +279,25 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
 {
     if (backdrop) return backdrop;
     const CGFloat w = [self bounds].size.width;
-    backdrop = [[NSImage alloc] initWithSize: NSMakeSize (w, kFaceH)];
+    const CGFloat h = [self bounds].size.height;
+    backdrop = [[NSImage alloc] initWithSize: NSMakeSize (w, h)];
     [backdrop lockFocusFlipped: YES];
 
     // The rack: dark, faintly textured metal behind everything
     [rgb (44, 41, 36) set];
-    NSRectFill (NSMakeRect (0, 0, w, kFaceH));
+    NSRectFill (NSMakeRect (0, 0, w, h));
     unsigned seed = 1020u;
-    for (int k = 0; k < 9000; ++k)
+    for (int k = 0; k < 15000; ++k)
     {
         seed = seed * 1664525u + 1013904223u; const CGFloat x = (seed >> 8) / 16777216.0 * w;
-        seed = seed * 1664525u + 1013904223u; const CGFloat y = (seed >> 8) / 16777216.0 * kFaceH;
+        seed = seed * 1664525u + 1013904223u; const CGFloat y = (seed >> 8) / 16777216.0 * h;
         seed = seed * 1664525u + 1013904223u; const double q = (seed >> 8) / 16777216.0;
         [[NSColor colorWithCalibratedWhite: q < 0.5 ? 1.0 : 0.0 alpha: 0.05 + 0.08 * q] set];
         NSRectFillUsingOperation (NSMakeRect (x, y, 1.0, 1.0), NSCompositeSourceOver);
     }
 
-    // The blue face
-    const NSRect face = NSMakeRect (kEarW, kBlueTop, w - 2 * kEarW, kBlueBot - kBlueTop);
+    // The blue face: one panel, controls on top, presets and readout below
+    const NSRect face = NSMakeRect (kEarW, kBlueTop, w - 2 * kEarW, h - kBlueTop - kBlueMargin);
     NSGradient* fg = [[[NSGradient alloc] initWithStartingColor: blueTop() endingColor: blueBot()] autorelease];
     [fg drawInRect: face angle: 90.0];
     // A soft sheen across the middle, as in the photo
@@ -319,9 +313,9 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
 
     // Rack screws (big, on the ears) and the face's fixing screws (small, left end)
     [self drawScrewAt: NSMakePoint (34, 34) radius: 12.5];
-    [self drawScrewAt: NSMakePoint (34, 108) radius: 12.5];
+    [self drawScrewAt: NSMakePoint (34, h - 34) radius: 12.5];
     [self drawScrewAt: NSMakePoint (w - 34, 32) radius: 12.5];
-    [self drawScrewAt: NSMakePoint (w - 34, 108) radius: 12.5];
+    [self drawScrewAt: NSMakePoint (w - 34, h - 34) radius: 12.5];
     [self drawScrewAt: NSMakePoint (108, 43) radius: 6.5];
     [self drawScrewAt: NSMakePoint (108, 99) radius: 6.5];
 
@@ -464,17 +458,51 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
 - (void) drawBackground
 {
     const NSRect b = [self bounds];
-    [[self backdropImage] drawInRect: NSMakeRect (0, 0, b.size.width, kFaceH) fromRect: NSZeroRect
+    [[self backdropImage] drawInRect: b fromRect: NSZeroRect
                            operation: NSCompositeSourceOver fraction: 1.0 respectFlipped: YES hints: nil];
+}
 
-    // Plugin strip, a slightly darker silver
-    NSGradient* strip = [[[NSGradient alloc] initWithStartingColor: rgb (196, 199, 203)
-                                                       endingColor: rgb (166, 170, 175)] autorelease];
-    [strip drawInRect: NSMakeRect (0, kStripTop, b.size.width, b.size.height - kStripTop) angle: 90.0];
-    [rgb (40, 40, 42) set];
-    NSRectFill (NSMakeRect (0, kStripTop, b.size.width, 2.0));
-    [rgb (238, 240, 242) set];
-    NSRectFill (NSMakeRect (0, kStripTop + 2.0, b.size.width, 1.0));
+// Preset buttons in the panel's red: dull when empty, the unit's red when
+// saved, lit with a red glow when in use (or SAVE while armed).
+- (void) drawRedKey: (NSRect) r state: (int) state
+{
+    NSBezierPath* bp = [NSBezierPath bezierPathWithRect: r];
+    if (state == 2)
+    {
+        [NSGraphicsContext saveGraphicsState];
+        NSShadow* glow = [[[NSShadow alloc] init] autorelease];
+        [glow setShadowOffset: NSMakeSize (0.0, 0.0)];
+        [glow setShadowBlurRadius: 12.0];
+        [glow setShadowColor: [NSColor colorWithCalibratedRed: 1.0 green: 0.28 blue: 0.16 alpha: 1.0]];
+        [glow set];
+        [rgb (232, 84, 58) set];
+        [bp fill];
+        [NSGraphicsContext restoreGraphicsState];
+        NSGradient* g = [[[NSGradient alloc] initWithColorsAndLocations:
+                            rgb (255, 196, 168), 0.0, rgb (246, 112, 82), 0.4, rgb (214, 70, 48), 0.85, rgb (176, 52, 36), 1.0, nil] autorelease];
+        [g drawInBezierPath: bp relativeCenterPosition: NSMakePoint (0.0, 0.0)];
+    }
+    else
+    {
+        [NSGraphicsContext saveGraphicsState];
+        NSShadow* sh = [[[NSShadow alloc] init] autorelease];
+        [sh setShadowOffset: NSMakeSize (1.0, -2.0)];
+        [sh setShadowBlurRadius: 2.5];
+        [sh setShadowColor: [NSColor colorWithCalibratedWhite: 0.0 alpha: 0.7]];
+        [sh set];
+        [rgb (130, 54, 44) set];
+        [bp fill];
+        [NSGraphicsContext restoreGraphicsState];
+        NSGradient* g = state == 1
+            ? [[[NSGradient alloc] initWithStartingColor: rgb (176, 80, 64) endingColor: rgb (122, 48, 38)] autorelease]
+            : [[[NSGradient alloc] initWithStartingColor: rgb (120, 56, 50) endingColor: rgb (84, 36, 30)] autorelease];
+        [g drawInBezierPath: bp angle: -90.0];
+        [[NSColor colorWithCalibratedWhite: 1.0 alpha: 0.16] set];
+        NSRectFillUsingOperation (NSMakeRect (NSMinX (r) + 2.0, NSMinY (r) + 1.5, r.size.width - 4.0, 1.2), NSCompositeSourceOver);
+    }
+    [rgb (12, 12, 14) set];
+    [bp setLineWidth: 1.0];
+    [bp stroke];
 }
 
 // Knurled black skirt; a teal cap with a white line.
@@ -695,7 +723,7 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
 - (void) drawReadout
 {
     const NSRect box = kReadoutRect;
-    NSBezierPath* p = [NSBezierPath bezierPathWithRoundedRect: box xRadius: 4 yRadius: 4];
+    NSBezierPath* p = [NSBezierPath bezierPathWithRect: box];
     NSGradient* glow = [[[NSGradient alloc] initWithStartingColor: rgb (206, 255, 120)
                                                       endingColor: rgb (150, 232, 70)] autorelease];
     [glow drawInBezierPath: p relativeCenterPosition: NSMakePoint (0.0, 0.0)];
@@ -743,36 +771,17 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
 
 - (void) drawPresets
 {
-    NSColor* black = [NSColor blackColor];
-    drawText ("PRESETS", boldFont (10.0), black, (NSMinX (kSaveRect) + NSMaxX (slotRect (kNumPresetSlots - 1))) * 0.5, kStripLabelY);
+    drawText ("PRESETS", boldFont (10.5), ink(), (NSMinX (kSaveRect) + NSMaxX (slotRect (kNumPresetSlots - 1))) * 0.5, kStripLabelY, 0.5);
 
-    NSBezierPath* sp = [NSBezierPath bezierPathWithRoundedRect: kSaveRect xRadius: 3 yRadius: 3];
-    if (saveMode)
-    {
-        [rgb (200, 30, 30) set];
-        [sp fill];
-    }
-    else
-    {
-        NSGradient* g = [[[NSGradient alloc] initWithStartingColor: rgb (232, 234, 236) endingColor: rgb (160, 163, 167)] autorelease];
-        [g drawInBezierPath: sp angle: -90.0];
-    }
-    [rgb (40, 41, 43) set];
-    [sp setLineWidth: 1.0];
-    [sp stroke];
-    drawText ("SAVE", boldFont (11.0), saveMode ? [NSColor whiteColor] : black, NSMidX (kSaveRect), NSMidY (kSaveRect));
+    [self drawRedKey: kSaveRect state: saveMode ? 2 : 1];
+    drawText ("SAVE", boldFont (11.0), saveMode ? rgb (60, 10, 6) : [NSColor whiteColor], NSMidX (kSaveRect), NSMidY (kSaveRect));
 
     for (int k = 0; k < kNumPresetSlots; ++k)
     {
         const NSRect r = slotRect (k);
-        NSBezierPath* bp = [NSBezierPath bezierPathWithRoundedRect: r xRadius: 3 yRadius: 3];
-        NSColor* fill = (k == activePreset) ? rgb (178, 245, 96) : (presetUsed[k] ? rgb (46, 47, 50) : rgb (214, 216, 219));
-        NSColor* text = (k == activePreset) ? black : (presetUsed[k] ? [NSColor whiteColor] : rgb (120, 122, 126));
-        [fill set];
-        [bp fill];
-        [rgb (40, 41, 43) set];
-        [bp setLineWidth: 1.0];
-        [bp stroke];
+        const int state = (k == activePreset) ? 2 : (presetUsed[k] ? 1 : 0);
+        [self drawRedKey: r state: state];
+        NSColor* text = state == 2 ? rgb (60, 10, 6) : (state == 1 ? [NSColor whiteColor] : rgb (196, 140, 130));
         char num[4];
         std::snprintf (num, sizeof (num), "%d", k + 1);
         drawText (num, boldFont (12.0), text, NSMidX (r), NSMidY (r));
@@ -783,7 +792,6 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
 {
     (void) dirty;
     [self drawBackground];
-    NSColor* black = [NSColor blackColor];
     const int range = rangeIndex (shown[kRange]);
 
     for (int i = 0; i < kNumCtls; ++i)
@@ -809,9 +817,9 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
                 break;
             case kCtlSmallKnob:
                 [self drawTrimAt: p radius: c.r value: shown[c.param]];
-                drawText (c.label, boldFont (10.5), black, c.cx, kStripLabelY);
-                drawText (c.posA, plainFont (9.5), black, c.cx - c.r + 1.0, c.cy + c.r + 9.0);
-                drawText (c.posB, plainFont (9.5), black, c.cx + c.r - 1.0, c.cy + c.r + 9.0);
+                drawText (c.label, boldFont (10.5), ink(), c.cx, kStripLabelY, 0.5);
+                drawText (c.posA, boldFont (9.0), ink(), c.cx - c.r + 1.0, c.cy + c.r + 9.0);
+                drawText (c.posB, boldFont (9.0), ink(), c.cx + c.r - 1.0, c.cy + c.r + 9.0);
                 break;
             default: break;
         }

@@ -9,8 +9,9 @@
 namespace tbeffectron
 {
 
-// The 1U face in the photo's proportions (699 x 78 scaled by 1.8), then the plugin strip
-enum { kEditorWidth = 1258, kEditorHeight = 236 };
+// The face in the photo's proportions (699 x 78 scaled by 1.8), extended down into one
+// panel that also holds the plugin controls
+enum { kEditorWidth = 1258, kEditorHeight = 240 };
 
 // Lamps the panel shows, read from the running circuit
 enum Meter { kMeterLimit = 0, kNumMeters };
