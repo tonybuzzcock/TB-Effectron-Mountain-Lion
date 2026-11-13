@@ -73,9 +73,9 @@ const NSRect kLogoBox = { { 1108.0, 28.0 }, { 104.0, 58.0 } };
 
 // Strip: preset section, then the readout
 const CGFloat kStripLabelY = 146.0;
-const NSRect kSaveRect = { { 236.0, 174.0 }, { 46.0, 26.0 } };
-const CGFloat kSlotX0 = 290.0, kSlotPitch = 33.0, kSlotW = 29.0, kSlotY = 174.0, kSlotH = 26.0;
-const NSRect kReadoutRect = { { 566.0, 174.0 }, { 330.0, 26.0 } };   // slim, level with the preset keys
+const NSRect kSaveRect = { { 226.0, 168.0 }, { 69.0, 39.0 } };
+const CGFloat kSlotX0 = 306.0, kSlotPitch = 50.0, kSlotW = 44.0, kSlotY = 168.0, kSlotH = 39.0;
+const NSRect kReadoutRect = { { 716.0, 168.0 }, { 495.0, 39.0 } };   // level with the preset keys
 
 inline NSRect slotRect (int k) { return NSMakeRect (kSlotX0 + k * kSlotPitch, kSlotY, kSlotW, kSlotH); }
 
@@ -710,7 +710,7 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
 
     if (status[0])
     {
-        drawText (status, boldFont (12.0), [NSColor blackColor], NSMidX (box), NSMidY (box));
+        drawText (status, boldFont (18.0), [NSColor blackColor], NSMidX (box), NSMidY (box));
     }
     else if (readoutParam >= 0 && host)
     {
@@ -742,16 +742,16 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
         }
         else
             std::snprintf (text, sizeof (text), "%s   %s%s", name ? name : "", disp, unit);
-        drawText (text, boldFont (12.0), [NSColor blackColor], NSMidX (box), NSMidY (box));
+        drawText (text, boldFont (18.0), [NSColor blackColor], NSMidX (box), NSMidY (box));
     }
 }
 
 - (void) drawPresets
 {
-    drawText ("PRESETS", boldFont (12.0), ink(), (NSMinX (kSaveRect) + NSMaxX (slotRect (kNumPresetSlots - 1))) * 0.5, 160.0, 0.6);
+    drawText ("PRESETS", boldFont (12.0), ink(), (NSMinX (kSaveRect) + NSMaxX (slotRect (kNumPresetSlots - 1))) * 0.5, 155.0, 0.6);
 
     [self drawRedKey: kSaveRect state: saveMode ? 2 : 1];
-    drawText ("SAVE", boldFont (11.0), saveMode ? rgb (60, 10, 6) : [NSColor whiteColor], NSMidX (kSaveRect), NSMidY (kSaveRect));
+    drawText ("SAVE", boldFont (16.5), saveMode ? rgb (60, 10, 6) : [NSColor whiteColor], NSMidX (kSaveRect), NSMidY (kSaveRect));
 
     for (int k = 0; k < kNumPresetSlots; ++k)
     {
@@ -761,7 +761,7 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
         NSColor* text = state == 2 ? rgb (60, 10, 6) : (state == 1 ? [NSColor whiteColor] : rgb (196, 140, 130));
         char num[4];
         std::snprintf (num, sizeof (num), "%d", k + 1);
-        drawText (num, boldFont (12.0), text, NSMidX (r), NSMidY (r));
+        drawText (num, boldFont (18.0), text, NSMidX (r), NSMidY (r));
     }
 }
 
@@ -869,13 +869,13 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
     char name[kMaxPresetName + 8] = { 0 };
     host->presetName (slot, name, (int) sizeof (name));
 
-    nameField = [[NSTextField alloc] initWithFrame: NSInsetRect (kReadoutRect, 4.0, 4.0)];
+    nameField = [[NSTextField alloc] initWithFrame: NSInsetRect (kReadoutRect, 6.0, 7.0)];
     [nameField setBezeled: NO];
     [nameField setBordered: NO];
     [nameField setDrawsBackground: YES];
     [nameField setBackgroundColor: rgb (196, 250, 110)];
     [nameField setTextColor: [NSColor blackColor]];
-    [nameField setFont: boldFont (12.0)];
+    [nameField setFont: boldFont (18.0)];
     [nameField setAlignment: NSCenterTextAlignment];
     [nameField setFocusRingType: NSFocusRingTypeNone];
     [nameField setStringValue: [NSString stringWithUTF8String: name]];

@@ -191,12 +191,12 @@ int main (int argc, char** argv)
     e->setParameter (e, kDelay, kDefaults[kDelay]);
 
     std::printf ("\nPresets\n");
-    #define SLOT(k) NSMakePoint (290.0 + (k) * 33.0 + 14.5, 187.0)
+    #define SLOT(k) NSMakePoint (306.0 + (k) * 50.0 + 22.0, 187.5)
     e->setParameter (e, kFeedback, 0.3f);
     e->setParameter (e, kRepeat, 1.0f);
     pump (0.1);
-    mouse (win, panel, NSLeftMouseDown, NSMakePoint (259, 187));    // SAVE
-    mouse (win, panel, NSLeftMouseUp,   NSMakePoint (259, 187));
+    mouse (win, panel, NSLeftMouseDown, NSMakePoint (260, 187));    // SAVE
+    mouse (win, panel, NSLeftMouseUp,   NSMakePoint (260, 187));
     mouse (win, panel, NSLeftMouseDown, SLOT (2));                   // slot 3
     mouse (win, panel, NSLeftMouseUp,   SLOT (2));
     FILE* pf = std::fopen (presetFile.c_str(), "r");
@@ -241,8 +241,8 @@ int main (int argc, char** argv)
     renderPNG (panel, dir + "/panel_preset_loaded.png");
 
     // Clicking the readout while the preset is in use renames it; Esc keeps the old name
-    mouse (win, panel, NSLeftMouseDown, NSMakePoint (731, 187));
-    mouse (win, panel, NSLeftMouseUp,   NSMakePoint (731, 187));
+    mouse (win, panel, NSLeftMouseDown, NSMakePoint (963, 187));
+    mouse (win, panel, NSLeftMouseUp,   NSMakePoint (963, 187));
     field = nil;
     for (NSView* sv in [panel subviews]) if ([sv isKindOfClass: [NSTextField class]]) field = (NSTextField*) sv;
     check (field != nil && [[field stringValue] isEqualToString: @"Big slow flange"], "clicking the readout opens the name to edit");
