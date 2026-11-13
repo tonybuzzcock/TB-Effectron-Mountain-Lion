@@ -75,7 +75,7 @@ const NSRect kLogoBox = { { 1108.0, 28.0 }, { 104.0, 58.0 } };
 const CGFloat kStripLabelY = 146.0;
 const NSRect kSaveRect = { { 236.0, 174.0 }, { 46.0, 26.0 } };
 const CGFloat kSlotX0 = 290.0, kSlotPitch = 33.0, kSlotW = 29.0, kSlotY = 174.0, kSlotH = 26.0;
-const NSRect kReadoutRect = { { 584.0, 164.0 }, { 560.0, 46.0 } };   // ends well inside the face
+const NSRect kReadoutRect = { { 566.0, 174.0 }, { 330.0, 26.0 } };   // slim, level with the preset keys
 
 inline NSRect slotRect (int k) { return NSMakeRect (kSlotX0 + k * kSlotPitch, kSlotY, kSlotW, kSlotH); }
 
@@ -710,7 +710,7 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
 
     if (status[0])
     {
-        drawText (status, boldFont (16.0), [NSColor blackColor], NSMidX (box), NSMidY (box));
+        drawText (status, boldFont (12.0), [NSColor blackColor], NSMidX (box), NSMidY (box));
     }
     else if (readoutParam >= 0 && host)
     {
@@ -730,8 +730,8 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
             std::snprintf (text, sizeof (text), "DELAY   ENVELOPE %s %%", disp + 4);
         else if (kind == kRangeSel)
         {
-            static const char* const names[4] = { "FLANGE  4 - 16 ms", "DOUBLE  16 - 64 ms", "SH ECHO  64 - 256 ms", "LG ECHO  256 - 1024 ms" };
-            std::snprintf (text, sizeof (text), "DIGITAL DELAY   %s", names[rangeIndex (shown[kRange])]);
+            static const char* const names[4] = { "FLANGE 4-16 ms", "DOUBLE 16-64 ms", "SH ECHO 64-256 ms", "LG ECHO 256-1024 ms" };
+            std::snprintf (text, sizeof (text), "DELAY RANGE  %s", names[rangeIndex (shown[kRange])]);
         }
         else if (kind == kMixPct)
         {
@@ -742,7 +742,7 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
         }
         else
             std::snprintf (text, sizeof (text), "%s   %s%s", name ? name : "", disp, unit);
-        drawText (text, boldFont (16.0), [NSColor blackColor], NSMidX (box), NSMidY (box));
+        drawText (text, boldFont (12.0), [NSColor blackColor], NSMidX (box), NSMidY (box));
     }
 }
 
@@ -869,18 +869,18 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
     char name[kMaxPresetName + 8] = { 0 };
     host->presetName (slot, name, (int) sizeof (name));
 
-    nameField = [[NSTextField alloc] initWithFrame: NSInsetRect (kReadoutRect, 8.0, 10.0)];
+    nameField = [[NSTextField alloc] initWithFrame: NSInsetRect (kReadoutRect, 4.0, 4.0)];
     [nameField setBezeled: NO];
     [nameField setBordered: NO];
     [nameField setDrawsBackground: YES];
     [nameField setBackgroundColor: rgb (196, 250, 110)];
     [nameField setTextColor: [NSColor blackColor]];
-    [nameField setFont: boldFont (16.0)];
+    [nameField setFont: boldFont (12.0)];
     [nameField setAlignment: NSCenterTextAlignment];
     [nameField setFocusRingType: NSFocusRingTypeNone];
     [nameField setStringValue: [NSString stringWithUTF8String: name]];
     char hint[64];
-    std::snprintf (hint, sizeof (hint), "NAME PRESET %d, THEN PRESS RETURN", slot + 1);
+    std::snprintf (hint, sizeof (hint), "NAME PRESET %d, THEN RETURN", slot + 1);
     [[nameField cell] setPlaceholderString: [NSString stringWithUTF8String: hint]];
     [[nameField cell] setScrollable: YES];
     [nameField setTarget: self];
@@ -938,7 +938,7 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
     if (NSPointInRect (p, kSaveRect))
     {
         saveMode = ! saveMode;
-        std::snprintf (status, sizeof (status), "%s", saveMode ? "SAVE: CLICK A SLOT 1-8" : "");
+        std::snprintf (status, sizeof (status), "%s", saveMode ? "SAVE: CLICK A SLOT" : "");
         [self setNeedsDisplay: YES];
         return YES;
     }

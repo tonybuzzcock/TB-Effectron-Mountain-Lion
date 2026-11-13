@@ -241,8 +241,8 @@ int main (int argc, char** argv)
     renderPNG (panel, dir + "/panel_preset_loaded.png");
 
     // Clicking the readout while the preset is in use renames it; Esc keeps the old name
-    mouse (win, panel, NSLeftMouseDown, NSMakePoint (860, 187));
-    mouse (win, panel, NSLeftMouseUp,   NSMakePoint (860, 187));
+    mouse (win, panel, NSLeftMouseDown, NSMakePoint (731, 187));
+    mouse (win, panel, NSLeftMouseUp,   NSMakePoint (731, 187));
     field = nil;
     for (NSView* sv in [panel subviews]) if ([sv isKindOfClass: [NSTextField class]]) field = (NSTextField*) sv;
     check (field != nil && [[field stringValue] isEqualToString: @"Big slow flange"], "clicking the readout opens the name to edit");
