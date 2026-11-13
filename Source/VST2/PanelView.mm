@@ -63,8 +63,8 @@ const Ctl kCtls[] = {
     { kMix,      kCtlKnob,        1049,  75, kKnobR, 0, "MIX",      0, 0 },
     { kRepeat,   kCtlPushButton,    72,  72, kButtonHalfW, 0, "REPEAT", 0, 0 },
     // Plugin strip
-    { kInput,    kCtlSmallKnob,     44, 190, 17, 0, "INPUT",  "-12", "+12" },
-    { kOutput,   kCtlSmallKnob,    116, 190, 17, 0, "OUTPUT", "-24", "+24" },
+    { kInput,    kCtlSmallKnob,     80, 186, kKnobR, 0, "INPUT",  "-12", "+12" },
+    { kOutput,   kCtlSmallKnob,    172, 186, kKnobR, 0, "OUTPUT", "-24", "+24" },
 };
 const int kNumCtls = (int) (sizeof (kCtls) / sizeof (kCtls[0]));
 
@@ -72,10 +72,10 @@ const NSPoint kLedLimit = { 153.0, 92.0 };
 const NSRect kLogoBox = { { 1108.0, 28.0 }, { 104.0, 58.0 } };
 
 // Strip: preset section, then the readout
-const CGFloat kStripLabelY = 158.0;
-const NSRect kSaveRect = { { 168.0, 177.0 }, { 46.0, 26.0 } };
-const CGFloat kSlotX0 = 222.0, kSlotPitch = 33.0, kSlotW = 29.0, kSlotY = 177.0, kSlotH = 26.0;
-const NSRect kReadoutRect = { { 500.0, 167.0 }, { 744.0, 46.0 } };
+const CGFloat kStripLabelY = 146.0;
+const NSRect kSaveRect = { { 236.0, 174.0 }, { 46.0, 26.0 } };
+const CGFloat kSlotX0 = 290.0, kSlotPitch = 33.0, kSlotW = 29.0, kSlotY = 174.0, kSlotH = 26.0;
+const NSRect kReadoutRect = { { 584.0, 164.0 }, { 560.0, 46.0 } };   // ends well inside the face
 
 inline NSRect slotRect (int k) { return NSMakeRect (kSlotX0 + k * kSlotPitch, kSlotY, kSlotW, kSlotH); }
 
@@ -165,7 +165,7 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
 } // namespace
 
 //==============================================================================
-@interface TBEffectronPanelView : NSView
+@interface TBEffectronPanelView : NSView <NSTextFieldDelegate>
 {
     EditorHost* host;
     float shown[kNumParams];
@@ -177,8 +177,11 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
     bool saveMode;
     int activePreset;
     bool presetUsed[kNumPresetSlots];
-    char status[64];
+    char status[96];
     NSImage* backdrop;    // ears, face and fixed lettering, made once
+    NSTextField* nameField;   // naming a preset, over the readout
+    NSTextField* retiredField;// a finished one, taken away once its own event is over
+    int namingSlot;
 }
 - (id) initWithFrame: (NSRect) frame host: (EditorHost*) h;
 - (void) shutdown;
@@ -200,6 +203,9 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
         activePreset = -1;
         status[0] = 0;
         backdrop = nil;
+        nameField = nil;
+        retiredField = nil;
+        namingSlot = -1;
         host->refreshPresets();
         for (int k = 0; k < kNumPresetSlots; ++k) presetUsed[k] = host->presetExists (k);
         timer = [[NSTimer timerWithTimeInterval: 1.0 / 20.0 target: self selector: @selector (tick:)
@@ -212,6 +218,17 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
 
 - (void) shutdown
 {
+    [NSObject cancelPreviousPerformRequestsWithTarget: self];
+    namingSlot = -1;
+    [self dropRetired];
+    if (nameField)
+    {
+        [nameField setDelegate: nil];
+        [nameField setTarget: nil];
+        [nameField removeFromSuperview];
+        [nameField release];
+        nameField = nil;
+    }
     if (timer) { [timer invalidate]; [timer release]; timer = nil; }
     if (backdrop) { [backdrop release]; backdrop = nil; }
     host = 0;
@@ -311,11 +328,7 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
     [[NSColor colorWithCalibratedWhite: 1.0 alpha: 0.12] set];
     NSRectFillUsingOperation (NSMakeRect (face.origin.x + 1, face.origin.y + 1, face.size.width - 2, 1.0), NSCompositeSourceOver);
 
-    // Rack screws (big, on the ears) and the face's fixing screws (small, left end)
-    [self drawScrewAt: NSMakePoint (34, 34) radius: 12.5];
-    [self drawScrewAt: NSMakePoint (34, h - 34) radius: 12.5];
-    [self drawScrewAt: NSMakePoint (w - 34, 32) radius: 12.5];
-    [self drawScrewAt: NSMakePoint (w - 34, h - 34) radius: 12.5];
+    // The face's small fixing screws (left end); no rack screws
     [self drawScrewAt: NSMakePoint (108, 43) radius: 6.5];
     [self drawScrewAt: NSMakePoint (108, 99) radius: 6.5];
 
@@ -443,6 +456,17 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
     endLabel ("SOURCE", 1049, 75, true);
     endLabel ("EFFECT", 1049, 75, false);
     drawText ("MIX", boldFont (13.0), white, 1049, 112, 0.6);
+
+    // Plugin controls on the lower part of the face: INPUT and OUTPUT trims
+    for (int i = 0; i < kNumCtls; ++i)
+    {
+        if (kCtls[i].type != kCtlSmallKnob) continue;
+        const Ctl& c = kCtls[i];
+        drawTicks (c.cx, c.cy, 11, -150, 150);
+        drawText (c.label, boldFont (12.0), white, c.cx, kStripLabelY, 0.6);
+        endLabel (c.posA, c.cx, c.cy, true);
+        endLabel (c.posB, c.cx, c.cy, false);
+    }
 
     // REPEAT (the rear footswitch's infinite repeat, on the face here)
     drawText ("REPEAT", boldFont (8.5), white, 72, 50, 0.3);
@@ -673,53 +697,6 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
     [lg drawInBezierPath: lens relativeCenterPosition: NSMakePoint (-0.3, 0.4)];
 }
 
-// Grey knurled knob with a red position line (the strip's trims).
-- (void) drawTrimAt: (NSPoint) ctr radius: (CGFloat) r value: (CGFloat) v
-{
-    [NSGraphicsContext saveGraphicsState];
-    NSShadow* sh = [[[NSShadow alloc] init] autorelease];
-    [sh setShadowOffset: NSMakeSize (1.5, -2.5)];
-    [sh setShadowBlurRadius: 4.0];
-    [sh setShadowColor: [NSColor colorWithCalibratedWhite: 0.0 alpha: 0.45]];
-    [sh set];
-    [rgb (90, 93, 97) set];
-    [[NSBezierPath bezierPathWithOvalInRect: NSMakeRect (ctr.x - r, ctr.y - r, 2 * r, 2 * r)] fill];
-    [NSGraphicsContext restoreGraphicsState];
-
-    const int ridges = 40;
-    for (int k = 0; k < ridges; ++k)
-    {
-        const CGFloat a0 = (CGFloat) (2.0 * M_PI * k / ridges);
-        const CGFloat a1 = (CGFloat) (2.0 * M_PI * (k + 0.5) / ridges);
-        NSBezierPath* w = [NSBezierPath bezierPath];
-        [w moveToPoint: ctr];
-        [w lineToPoint: polar (ctr.x, ctr.y, r, a0)];
-        [w lineToPoint: polar (ctr.x, ctr.y, r, a1)];
-        [w closePath];
-        const CGFloat lit = 0.5 + 0.5 * std::cos (a0 + 0.8);
-        [[NSColor colorWithCalibratedWhite: 0.40 + 0.22 * lit alpha: 1.0] set];
-        [w fill];
-    }
-
-    const CGFloat rc = r * 0.78;
-    NSGradient* cap = [[[NSGradient alloc] initWithStartingColor: rgb (172, 175, 179)
-                                                     endingColor: rgb (104, 107, 111)] autorelease];
-    NSBezierPath* capPath = [NSBezierPath bezierPathWithOvalInRect: NSMakeRect (ctr.x - rc, ctr.y - rc, 2 * rc, 2 * rc)];
-    [cap drawInBezierPath: capPath angle: -60.0];
-    [rgb (70, 72, 75) set];
-    [capPath setLineWidth: 0.8];
-    [capPath stroke];
-
-    const CGFloat a = valueAngle (v);
-    NSBezierPath* ln = [NSBezierPath bezierPath];
-    [ln moveToPoint: polar (ctr.x, ctr.y, r * 0.18, a)];
-    [ln lineToPoint: polar (ctr.x, ctr.y, r * 0.98, a)];
-    [ln setLineWidth: 2.4];
-    [ln setLineCapStyle: NSRoundLineCapStyle];
-    [rgb (200, 30, 30) set];
-    [ln stroke];
-}
-
 - (void) drawReadout
 {
     const NSRect box = kReadoutRect;
@@ -771,7 +748,7 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
 
 - (void) drawPresets
 {
-    drawText ("PRESETS", boldFont (10.5), ink(), (NSMinX (kSaveRect) + NSMaxX (slotRect (kNumPresetSlots - 1))) * 0.5, kStripLabelY, 0.5);
+    drawText ("PRESETS", boldFont (12.0), ink(), (NSMinX (kSaveRect) + NSMaxX (slotRect (kNumPresetSlots - 1))) * 0.5, 160.0, 0.6);
 
     [self drawRedKey: kSaveRect state: saveMode ? 2 : 1];
     drawText ("SAVE", boldFont (11.0), saveMode ? rgb (60, 10, 6) : [NSColor whiteColor], NSMidX (kSaveRect), NSMidY (kSaveRect));
@@ -816,10 +793,7 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
                 [self drawButtonAt: p in: isOn (shown[c.param])];
                 break;
             case kCtlSmallKnob:
-                [self drawTrimAt: p radius: c.r value: shown[c.param]];
-                drawText (c.label, boldFont (10.5), ink(), c.cx, kStripLabelY, 0.5);
-                drawText (c.posA, boldFont (9.0), ink(), c.cx - c.r + 1.0, c.cy + c.r + 9.0);
-                drawText (c.posB, boldFont (9.0), ink(), c.cx + c.r - 1.0, c.cy + c.r + 9.0);
+                [self drawKnobAt: p skirtValue: shown[c.param] capAngle: valueAngle (shown[c.param]) tealCap: true skirtPointer: false];
                 break;
             default: break;
         }
@@ -861,6 +835,103 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
     [self setNeedsDisplay: YES];
 }
 
+//------------------------------------------------------------------------------
+// Preset names: after a save, or a click on the readout while a preset is in
+// use, the readout becomes a text box. Return keeps the name, Esc leaves the
+// old one, a click elsewhere keeps what was typed.
+
+- (void) showPreset: (int) slot verb: (const char*) verb
+{
+    char name[kMaxPresetName + 8] = { 0 };
+    if (host) host->presetName (slot, name, (int) sizeof (name));
+    if (name[0]) std::snprintf (status, sizeof (status), "%d   %s", slot + 1, name);
+    else         std::snprintf (status, sizeof (status), "PRESET %d %s", slot + 1, verb);
+    [self setNeedsDisplay: YES];
+}
+
+- (void) dropRetired
+{
+    if (! retiredField) return;
+    [retiredField setDelegate: nil];
+    [retiredField setTarget: nil];
+    [retiredField removeFromSuperview];
+    [retiredField release];
+    retiredField = nil;
+    if (! nameField && [self window]) [[self window] makeFirstResponder: self];
+    [self setNeedsDisplay: YES];
+}
+
+- (void) startNaming: (int) slot
+{
+    if (! host || slot < 0) return;
+    if (nameField) [self finishNaming: YES];
+    namingSlot = slot;
+    char name[kMaxPresetName + 8] = { 0 };
+    host->presetName (slot, name, (int) sizeof (name));
+
+    nameField = [[NSTextField alloc] initWithFrame: NSInsetRect (kReadoutRect, 8.0, 10.0)];
+    [nameField setBezeled: NO];
+    [nameField setBordered: NO];
+    [nameField setDrawsBackground: YES];
+    [nameField setBackgroundColor: rgb (196, 250, 110)];
+    [nameField setTextColor: [NSColor blackColor]];
+    [nameField setFont: boldFont (16.0)];
+    [nameField setAlignment: NSCenterTextAlignment];
+    [nameField setFocusRingType: NSFocusRingTypeNone];
+    [nameField setStringValue: [NSString stringWithUTF8String: name]];
+    char hint[64];
+    std::snprintf (hint, sizeof (hint), "NAME PRESET %d, THEN PRESS RETURN", slot + 1);
+    [[nameField cell] setPlaceholderString: [NSString stringWithUTF8String: hint]];
+    [[nameField cell] setScrollable: YES];
+    [nameField setTarget: self];
+    [nameField setAction: @selector (nameEntered:)];
+    [nameField setDelegate: self];
+    [self addSubview: nameField];
+    status[0] = 0;
+    readoutParam = -1;
+    [[self window] makeFirstResponder: nameField];
+    [self setNeedsDisplay: YES];
+}
+
+- (void) finishNaming: (BOOL) keep
+{
+    const int slot = namingSlot;
+    if (slot < 0) return;
+    namingSlot = -1;                       // only once (Return, then end of editing)
+    if (keep && host && nameField)
+    {
+        const char* utf8 = [[nameField stringValue] UTF8String];
+        host->renamePreset (slot, utf8 ? utf8 : "");
+    }
+    [self showPreset: slot verb: "SAVED"];
+    // the field may be in the middle of sending its action: take it away afterwards
+    [self dropRetired];
+    retiredField = nameField;
+    nameField = nil;
+    [retiredField setDelegate: nil];
+    [retiredField setTarget: nil];
+    [self performSelector: @selector (dropRetired) withObject: nil afterDelay: 0.0];
+}
+
+- (void) nameEntered: (id) sender
+{
+    (void) sender;
+    [self finishNaming: YES];
+}
+
+- (void) controlTextDidEndEditing: (NSNotification*) n
+{
+    (void) n;
+    [self finishNaming: YES];
+}
+
+- (BOOL) control: (NSControl*) c textView: (NSTextView*) tv doCommandBySelector: (SEL) sel
+{
+    (void) c; (void) tv;
+    if (sel == @selector (cancelOperation:)) { [self finishNaming: NO]; return YES; }
+    return NO;
+}
+
 // SAVE button and preset slots. Returns YES if the click was handled here.
 - (BOOL) presetClick: (NSPoint) p
 {
@@ -880,8 +951,15 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
             saveMode = false;
             host->refreshPresets();
             for (int j = 0; j < kNumPresetSlots; ++j) presetUsed[j] = host->presetExists (j);
-            if (ok) activePreset = k;
-            std::snprintf (status, sizeof (status), ok ? "PRESET %d SAVED" : "COULD NOT SAVE PRESET %d", k + 1);
+            if (ok)
+            {
+                activePreset = k;
+                std::snprintf (status, sizeof (status), "PRESET %d SAVED", k + 1);
+                [self setNeedsDisplay: YES];
+                [self startNaming: k];
+                return YES;
+            }
+            std::snprintf (status, sizeof (status), "COULD NOT SAVE PRESET %d", k + 1);
         }
         else
         {
@@ -891,7 +969,7 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
             {
                 for (int j = 0; j < kNumParams; ++j) shown[j] = host->getParam (j);
                 activePreset = k;
-                std::snprintf (status, sizeof (status), "PRESET %d LOADED", k + 1);
+                [self showPreset: k verb: "LOADED"];
             }
             else
                 std::snprintf (status, sizeof (status), "PRESET %d IS EMPTY", k + 1);
@@ -906,6 +984,12 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
 {
     const NSPoint p = [self convertPoint: [e locationInWindow] fromView: nil];
     if (! host) return;
+    if (nameField) [self finishNaming: YES];
+    if (NSPointInRect (p, kReadoutRect) && activePreset >= 0)
+    {
+        [self startNaming: activePreset];
+        return;
+    }
     if ([self presetClick: p]) return;
     const int i = [self ctlAtPoint: p];
     if (i < 0) return;

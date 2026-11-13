@@ -1,5 +1,5 @@
 // Presets.h
-// Eight user preset slots, each holding every parameter, kept in one small
+// Eight user preset slots, each holding every parameter and a name, kept in one small
 // text file so all instances and sessions share them:
 //   Mac:   ~/Library/Application Support/TB/TB Effectron/Presets.txt
 //   other: ~/.config/TB/TB Effectron/Presets.txt
@@ -16,7 +16,7 @@
 namespace tbeffectron
 {
 
-enum { kNumPresetSlots = 8 };
+enum { kNumPresetSlots = 8, kMaxPresetName = 40 };
 
 class PresetStore
 {
@@ -32,11 +32,16 @@ public:
 
     bool has (int slot) const;
     bool get (int slot, float values[kNumParams]) const;
-    void put (int slot, const float values[kNumParams]);
+    void put (int slot, const float values[kNumParams]);   // keeps the slot's name
+
+    // A name per slot (up to kMaxPresetName characters, printable, one line)
+    std::string name (int slot) const;
+    void setName (int slot, const std::string& n);
 
 private:
     std::string path;
     bool used[kNumPresetSlots];
+    std::string names[kNumPresetSlots];
     float vals[kNumPresetSlots][kNumParams];
 };
 

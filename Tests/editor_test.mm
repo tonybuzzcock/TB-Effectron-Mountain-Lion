@@ -139,8 +139,8 @@ int main (int argc, char** argv)
     // the concentric knob's outer ring, WIDTH its inner cap.
     {
         const int knobs[8] = { kLevel, kFeedback, kDelay, kWidth, kSpeed, kMix, kInput, kOutput };
-        const CGFloat kx[8] = { 211, 349, 733, 733, 895, 1049, 44, 116 };
-        const CGFloat ky[8] = { 75, 75, 56, 75, 75, 75, 190, 190 };
+        const CGFloat kx[8] = { 211, 349, 733, 733, 895, 1049, 80, 172 };
+        const CGFloat ky[8] = { 75, 75, 56, 75, 75, 75, 186, 186 };
         bool all = true;
         for (int k = 0; k < 8; ++k)
         {
@@ -191,17 +191,42 @@ int main (int argc, char** argv)
     e->setParameter (e, kDelay, kDefaults[kDelay]);
 
     std::printf ("\nPresets\n");
-    #define SLOT(k) NSMakePoint (222.0 + (k) * 33.0 + 14.5, 190.0)
+    #define SLOT(k) NSMakePoint (290.0 + (k) * 33.0 + 14.5, 187.0)
     e->setParameter (e, kFeedback, 0.3f);
     e->setParameter (e, kRepeat, 1.0f);
     pump (0.1);
-    mouse (win, panel, NSLeftMouseDown, NSMakePoint (191, 190));    // SAVE
-    mouse (win, panel, NSLeftMouseUp,   NSMakePoint (191, 190));
+    mouse (win, panel, NSLeftMouseDown, NSMakePoint (259, 187));    // SAVE
+    mouse (win, panel, NSLeftMouseUp,   NSMakePoint (259, 187));
     mouse (win, panel, NSLeftMouseDown, SLOT (2));                   // slot 3
     mouse (win, panel, NSLeftMouseUp,   SLOT (2));
     FILE* pf = std::fopen (presetFile.c_str(), "r");
     check (pf != 0, "SAVE then a slot writes the preset file");
     if (pf) std::fclose (pf);
+
+    // Saving opens a name box over the readout
+    NSTextField* field = nil;
+    for (NSView* sv in [panel subviews])
+        if ([sv isKindOfClass: [NSTextField class]]) field = (NSTextField*) sv;
+    check (field != nil, "saving opens a box to name the preset");
+    renderPNG (panel, dir + "/panel_naming.png");
+    if (field)
+    {
+        [field setStringValue: @"Big slow flange"];
+        [field sendAction: [field action] to: [field target]];       // Return
+        pump (0.2);
+    }
+    bool named = false;
+    pf = std::fopen (presetFile.c_str(), "r");
+    if (pf)
+    {
+        char ln[256];
+        while (std::fgets (ln, sizeof (ln), pf)) if (std::strstr (ln, "name 3: Big slow flange")) named = true;
+        std::fclose (pf);
+    }
+    check (named, "Return saves the name with the preset");
+    bool gone = true;
+    for (NSView* sv in [panel subviews]) if ([sv isKindOfClass: [NSTextField class]]) gone = false;
+    check (gone, "and the name box goes away");
     renderPNG (panel, dir + "/panel_preset_saved.png");
 
     e->setParameter (e, kFeedback, 0.9f);
@@ -213,6 +238,29 @@ int main (int argc, char** argv)
     check (std::fabs (e->getParameter (e, kFeedback) - 0.3f) < 1e-5f
            && e->getParameter (e, kRepeat) >= 0.5f, "clicking the slot recalls the saved settings");
     check (automateCalls >= kNumParams, "recall tells the host about every parameter");
+    renderPNG (panel, dir + "/panel_preset_loaded.png");
+
+    // Clicking the readout while the preset is in use renames it; Esc keeps the old name
+    mouse (win, panel, NSLeftMouseDown, NSMakePoint (860, 187));
+    mouse (win, panel, NSLeftMouseUp,   NSMakePoint (860, 187));
+    field = nil;
+    for (NSView* sv in [panel subviews]) if ([sv isKindOfClass: [NSTextField class]]) field = (NSTextField*) sv;
+    check (field != nil && [[field stringValue] isEqualToString: @"Big slow flange"], "clicking the readout opens the name to edit");
+    if (field)
+    {
+        [field setStringValue: @"Something else"];
+        [(id) panel control: field textView: nil doCommandBySelector: @selector (cancelOperation:)];   // Esc
+        pump (0.2);
+    }
+    named = false;
+    pf = std::fopen (presetFile.c_str(), "r");
+    if (pf)
+    {
+        char ln[256];
+        while (std::fgets (ln, sizeof (ln), pf)) if (std::strstr (ln, "name 3: Big slow flange")) named = true;
+        std::fclose (pf);
+    }
+    check (named, "Esc keeps the old name");
 
     const float before = e->getParameter (e, kFeedback);
     mouse (win, panel, NSLeftMouseDown, SLOT (5));                   // empty slot 6
