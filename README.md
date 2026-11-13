@@ -31,7 +31,7 @@ DELAY changes the loop's pitch (MIN to halfway is an octave).
 
 Every push button lights up red when it is in. The TB electronic logo is at the right-hand end. The
 panel keeps the unit's colours: the blue face, white lettering, black knurled knobs with teal caps
-(SPEED all black), and the red buttons.
+(SPEED matched to the others), and the red buttons.
 
 Plugin strip: Input (+-12 dB), Output (+-24 dB), 8 presets, readout.
 

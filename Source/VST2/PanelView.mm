@@ -2,7 +2,8 @@
 // The custom panel for TB Effectron: an original drawing laid out like the
 // user's Effectron I (ADM 1020), in the unit's own colours as the user asked:
 // the blue 1U face between dark rack ears, white lettering, black knurled
-// knobs with teal caps (the concentric DELAY / WIDTH pair, SPEED all black),
+// knobs with teal caps (SPEED too, at the user's request; the concentric
+// DELAY / WIDTH pair),
 // the two red DIGITAL DELAY push buttons with their range legend, the LIMIT
 // LED, the MODULATOR outline. The DeltaLab badge is left off; REPEAT (the
 // rear footswitch's infinite repeat) sits in its place as a third red push
@@ -476,7 +477,7 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
     NSRectFill (NSMakeRect (0, kStripTop + 2.0, b.size.width, 1.0));
 }
 
-// Knurled black skirt; a teal cap (or a black one, SPEED) with a white line.
+// Knurled black skirt; a teal cap with a white line.
 // skirtPointer: the line is on the skirt's edge (DELAY's outer ring) rather than the cap.
 - (void) drawKnobAt: (NSPoint) c skirtValue: (CGFloat) sv capAngle: (CGFloat) capA
             tealCap: (bool) teal skirtPointer: (bool) skirtPointer
@@ -792,10 +793,7 @@ void endLabel (const char* s, CGFloat cx, CGFloat cy, bool left)
         switch (c.type)
         {
             case kCtlKnob:
-                if (c.param == kSpeed)
-                    [self drawKnobAt: p skirtValue: shown[c.param] capAngle: valueAngle (shown[c.param]) tealCap: false skirtPointer: false];
-                else
-                    [self drawKnobAt: p skirtValue: shown[c.param] capAngle: valueAngle (shown[c.param]) tealCap: true skirtPointer: false];
+                [self drawKnobAt: p skirtValue: shown[c.param] capAngle: valueAngle (shown[c.param]) tealCap: true skirtPointer: false];
                 break;
             case kCtlOuterRing:
                 // DELAY on the black skirt, WIDTH on the teal cap
